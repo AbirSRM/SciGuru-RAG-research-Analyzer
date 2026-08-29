@@ -1,0 +1,15 @@
+services:
+  sciguru:
+    build: .
+    container_name: sciguru_app
+    ports:
+      - "8501:8501"
+    volumes:
+      # Use a Docker named volume to avoid host file sharing permission issues
+      - sciguru_data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  sciguru_data:

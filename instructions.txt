@@ -1,0 +1,70 @@
+====================================================
+INTERVIEW DEMO GUIDE: SCIGURU
+====================================================
+
+This guide is designed to help you flawlessly demo your SciGuru application to a recruiter or hiring manager during a technical interview.
+
+----------------------------------------------------
+1. PRE-INTERVIEW SETUP (Do this 10 minutes before)
+----------------------------------------------------
+Make sure you have a sample research paper PDF ready on your desktop to test the upload feature.
+Ensure Docker Desktop (or your Docker engine) is running in the background.
+Ensure your `.env` file exists and has a valid `GROQ_API_KEY`.
+
+Open your terminal and navigate to the project folder:
+  cd "path/to/SciGuru"
+
+
+----------------------------------------------------
+2. STARTING THE APP (During the Interview)
+----------------------------------------------------
+When it's time to show the app, explain that you have dockerized the application to ensure it can run anywhere reliably.
+
+Run the following command while sharing your screen:
+  ./run.sh
+
+*Talking Point:* "I've containerized the entire application using Docker. This `run.sh` script automatically provisions the environment, builds the image, and sets up volume mapping so the vector databases (FAISS) persist between container restarts."
+
+
+----------------------------------------------------
+3. THE DEMO WALKTHROUGH
+----------------------------------------------------
+Open your browser to: http://localhost:8501
+
+Step A: The Interface
+- Point out the clean UI. Mention you used Streamlit for rapid prototyping of data applications, but structured the backend code so it could be easily migrated to FastAPI/React if needed.
+
+Step B: The Search Mode
+- Select "Search the Internet (ArXiv)".
+- Type a topic, for example: "Federated Learning in Healthcare".
+- *Talking Point:* "The app connects directly to the ArXiv API, fetches the most recent papers, downloads their PDFs dynamically, and processes them using LangChain text splitters. It converts all text into embeddings using a local HuggingFace model, completely offline, to save API costs."
+
+Step C: The Retrieval Augmented Generation (RAG)
+- Once indexed, type a question in the search bar: "What are the current limitations in this field?"
+- *Talking Point:* "When I ask a question, the app does a semantic search across the FAISS vector database to retrieve the most relevant chunks. I then use a Cross-Encoder to re-rank the results for maximum accuracy before feeding them to Llama-3 (via Groq) to generate a structured analysis of the research gaps."
+
+Step D: Self-Evaluation (The "Wow" feature)
+- Expand the "Show Self-Evaluation & Hallucination Check" section.
+- *Talking Point:* "To prevent the LLM from hallucinating, I built a self-evaluation loop. It critically reviews its own answer against the retrieved chunks and scores its confidence, which is extremely important for academic and scientific applications."
+
+
+----------------------------------------------------
+4. KEY ARCHITECTURE FLEXES (Drop these buzzwords!)
+----------------------------------------------------
+If they ask about the tech stack or why you built it this way, hit these points:
+
+1. Cost/Performance Optimization: "By using `all-MiniLM-L6-v2` locally for embeddings, I save money and reduce latency. I only use the Groq API for the final Llama-3 reasoning, which gives me incredible speed."
+2. Caching Strategy: "I implemented a caching mechanism for the FAISS vector stores by hashing the folder contents and ArXiv queries. This ensures that if the same papers are queried again, it loads instantly from disk rather than reprocessing them."
+3. Two-Stage Retrieval: "I don't just rely on basic cosine similarity. I implemented a two-stage retrieval pipeline using a cross-encoder for re-ranking, which significantly improves the quality of the context provided to the LLM."
+
+
+----------------------------------------------------
+5. THE "WOW" FACTOR: Let them try it live
+----------------------------------------------------
+If you want to blow their minds, open a NEW terminal tab during the interview and run:
+  ngrok http 8501
+
+(Note: Ensure you have run `ngrok config add-authtoken <token>` beforehand!)
+
+Copy the URL it generates and paste it into the Zoom/Teams chat. 
+Tell the recruiter: "You can open this link on your phone right now to test the Research Gap Analyzer. The traffic is securely tunneled directly to my Docker container running locally via Ngrok."
