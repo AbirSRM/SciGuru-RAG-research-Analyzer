@@ -2,152 +2,78 @@
 [![Groq](https://img.shields.io/badge/Groq-100000?style=for-the-badge&logo=groq&logoColor=white)](https://groq.com/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-**SciGuru** is an AI-powered research assistant that analyzes recent academic papers (from ArXiv, uploaded PDFs, or your own local folder) to identify **research gaps, limitations, and future opportunities**. It uses a Retrieval-Augmented Generation (RAG) pipeline with local embeddings, a FAISS vector store, and a Groq LLM for reasoning.
+**SciGuru** is an advanced, AI-driven research intelligence engine designed to autonomously parse, index, and analyze academic literature. By leveraging a multi-stage Retrieval-Augmented Generation (RAG) architecture, SciGuru dynamically identifies epistemological research gaps, methodological limitations, and future innovation opportunities across any scientific domain.
 
 ---
 
-## 🚀 Quick Setup (Docker - Recommended)
+## 🧠 System Architecture & Technical Pipeline
 
-The easiest and most reliable way to run SciGuru is using Docker. This ensures all system dependencies (like FAISS and PyTorch) are isolated and perfectly configured.
+SciGuru implements a robust, localized NLP pipeline orchestrated via LangChain to ensure maximum context relevance while minimizing external API dependencies. 
+
+1. **Multi-Modal Data Ingestion**: The system programmatically interfaces with the ArXiv API for dynamic literature retrieval, whilst also supporting asynchronous local PDF parsing via PyPDFLoader.
+2. **Deterministic Chunking Strategy**: Documents are parsed and recursively partitioned into highly cohesive, overlapping context windows to preserve semantic integrity during vectorization.
+3. **Local Embedding Projection**: Text chunks are projected into a dense semantic vector space utilizing the HuggingFace `all-MiniLM-L6-v2` transformer model operating entirely locally on CPU, ensuring zero data-egress for proprietary documents.
+4. **FAISS Vector Indexing**: High-dimensional vectors are stored and indexed using Meta's FAISS (Facebook AI Similarity Search), enabling sub-millisecond approximate nearest neighbor (ANN) retrieval. The index state is persistently cached via Docker volumes.
+5. **Two-Stage Retrieval & Cross-Encoding**: Initial context retrieval via cosine similarity is subsequently re-ranked using a dedicated Cross-Encoder (`ms-marco-MiniLM-L-6-v2`). This radically improves Precision@K by explicitly scoring query-document pairs before passing them to the generative model.
+6. **LLM Synthesis & Reasoning**: The re-ranked context payload is injected into a specialized prompt template and evaluated by `llama-3.3-70b-versatile` (via Groq's high-throughput LPU inference engine) to synthesize structured gap analyses.
+7. **Autonomous Hallucination Mitigation**: SciGuru implements a deterministic self-reflection protocol. The LLM acts as an independent evaluator to score its own generative output strictly against the retrieved grounding context, flagging unsupported claims and outputting a confidence metric.
+
+---
+
+## 🚀 Quick Setup (Docker)
+
+The entire microservice architecture is fully containerized. The provided bash script handles dependency provisioning, environment orchestration, and volume mounting for persistent vector storage.
 
 ### Prerequisites
-- Docker & Docker Compose installed.
-- A free [Groq API Key](https://console.groq.com/keys).
+- Docker & Docker Compose installed and running.
+- A free [Groq API Key](https://console.groq.com/keys) for Llama-3 inference.
 
-### 1. Configure API Key
-Copy the example environment file and add your Groq API key:
+### 1. Configure the Environment
+Clone the repository and set up your environment variables:
 ```bash
+git clone https://github.com/AbirSRM/SciGuru-RAG-research-Analyzer.git
+cd SciGuru-RAG-research-Analyzer
+
 cp .env.example .env
-# Open .env and add your key: GROQ_API_KEY=your_key_here
+# Open .env and add your Groq API key: GROQ_API_KEY=your_key_here
 ```
 
-### 2. Run the Application
-Start the application effortlessly using the provided run script:
+### 2. Run the Engine
+A unified executable is provided to build the image and spin up the container:
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
-*(Note: The very first time you run this, it will take a minute to download the Docker image. Every subsequent run will start instantly in < 2 seconds!)*
 
-A browser window will automatically be accessible at **http://localhost:8501**.
-
----
-
-## 🌐 Live Demonstrations (Ngrok)
-If you wish to share the application externally (e.g., during a technical interview or presentation), ensure the app is running locally, open a **new terminal**, and run:
-```bash
-ngrok http 8501
-```
-Share the generated `ngrok.app` URL with your audience! They can access your locally-hosted app directly from their phone or browser.
+The application will bind to port 8501 and is accessible immediately at: **http://localhost:8501**.
 
 ---
 
-## ✨ Features
-- **Three Input Modes**
-  - Upload individual PDFs (temporary analysis)
-  - Search ArXiv by research domain (with caching)
-  - **Scan a local folder (`data/papers/`)** – build a persistent, reusable index of your own paper collection
+## ✨ Core Capabilities
 
-- **Intelligent Analysis**
-  - Extracts and chunks document content
-  - Builds a vector index using `all-MiniLM-L6-v2` (CPU-friendly)
-  - Re-ranks retrieved passages using a cross-encoder for semantic relevance
-  - Generates structured analysis: **Current State, Research Gaps, Areas for Improvement, New Opportunities**
-
-- **Self-Evaluation**
-  - Includes a hallucination check with confidence scoring
-  - Compares generated analysis against provided context
-
-- **Offline Caching**
-  - Reuses previously built indexes for repeated queries
-  - Speeds up repeated searches dramatically (persisted across Docker restarts via Named Volumes!)
+- **Dynamic Literature Indexing**: On-the-fly vectorization of ArXiv repositories based on complex domain queries.
+- **Local Knowledge Base**: Persistent FAISS indexing of custom PDF libraries stored in `data/papers/`, enabling offline semantic search against proprietary datasets.
+- **Structured Output Generation**: Synthesizes literature into four critical dimensions: *Current State*, *Research Gaps*, *Areas for Improvement*, and *New Opportunities*.
+- **Hardware Optimized**: Built to run gracefully on consumer hardware by offloading heavy LLM inference to Groq while handling embeddings locally.
 
 ---
 
-## 🛠️ Tech Stack
-| Component | Tool |
-|-----------|------|
-| Frontend | Streamlit |
-| LLM | Groq (`llama-3.3-70b-versatile`) |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` (local CPU) |
-| Vector DB | FAISS (persistent caching) |
-| Re-ranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
-| Containerization | Docker & Docker Compose |
-| Document Processing | PyPDF, LangChain |
+## 🛠️ Technology Stack
 
----
-
-## 🧠 How It Works (High‑Level)
-1. **Input** – User chooses one of three sources: upload, ArXiv, or local folder.
-2. **Processing** – Text is extracted and split into overlapping chunks.
-3. **Embedding** – Chunks are embedded locally with `all-MiniLM-L6-v2`.
-4. **Indexing** – FAISS builds a vector index (cached on disk for reuse).
-5. **Retrieval** – For a research question, the most relevant chunks are retrieved.
-6. **Re‑ranking** – A cross‑encoder re‑orders chunks by semantic similarity.
-7. **Generation** – Groq LLM synthesises a structured gap analysis.
-8. **Self‑Eval** – The LLM also evaluates its own output against the context to flag hallucinations.
-
----
-
-## 📁 Project Structure (Key Files)
-```
-SciGuru/
-├── app.py                  # Main Streamlit application
-├── requirements.txt        # Python dependencies
-├── Dockerfile              # Docker image definition (optimized for CPU PyTorch)
-├── docker-compose.yml      # Docker orchestration & volume mapping
-├── run.sh                  # One-click start script
-├── instructions.txt        # Interview/Demo talking points guide
-├── .env.example            # Template for API key
-├── .gitignore              # Recommended ignore patterns
-└── data/
-    ├── indexes/            # Cached FAISS indexes (auto‑generated)
-    └── papers/             # Place your own PDFs here for the local database
-```
-
----
-
-## 🛠️ Manual Local Setup (Without Docker)
-
-If you prefer *not* to use Docker, you can run the app natively on your machine:
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/AbirSRM/SciGuru-RAG-research-Analyzer.git
-   cd SciGuru-RAG-research-Analyzer
-   ```
-
-2. **Create a Virtual Environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate        # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set Up Your Groq API Key**
-   ```bash
-   cp .env.example .env
-   # Edit .env and paste your Groq API key
-   ```
-
-5. **Run the Application**
-   ```bash
-   streamlit run app.py
-   ```
+| Component | Technology |
+|-----------|------------|
+| **Frontend UI** | Streamlit |
+| **LLM Engine** | `llama-3.3-70b-versatile` (via Groq) |
+| **Embedding Model** | `sentence-transformers/all-MiniLM-L6-v2` |
+| **Re-Ranker** | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
+| **Vector Database** | FAISS |
+| **Orchestration** | LangChain |
+| **Containerization** | Docker & Docker Compose (Named Volumes) |
 
 ---
 
 ## 🤝 Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Contributions, issues, and feature requests are welcome. Feel free to check the issues page if you want to contribute.
 
 ## 📄 License
 This project is open-source and available under the MIT License.
-
-## 🙏 Acknowledgements
-- Built with [LangChain](https://www.langchain.com/) and [Streamlit](https://streamlit.io/).
-- Embeddings and re‑ranker models from [Sentence‑Transformers](https://www.sbert.net/).
-- LLM inference powered by [Groq](https://groq.com/).
